@@ -30,10 +30,6 @@ defmodule Cards do
     if no_dups?(cards), do: {:no_match, cards}, else: :invalid
   end
 
-  defp no_dups?(cards) do
-    Enum.count(Enum.dedup(cards)) === Enum.count(cards)
-  end
-
   defp straight_flush(cards) do
     with {:match, :straight} <- straight(cards),
          {:match, :flush} <- flush(cards),
@@ -41,13 +37,11 @@ defmodule Cards do
   end
 
   defp four_of_a_kind(cards) do
-    # 4 cards same face
-    {:match, :four_of_a_kind}
+    test_for_pairs(cards, [1, 4], :four_of_a_kind)
   end
 
   defp full_house(cards) do
-    # three of a kind and one pair together
-    {:match, :full_house}
+    test_for_pairs(cards, [2, 3], :full_house)
   end
 
   defp flush([{_,s}, {_,s}, {_,s}, {_,s}, {_,s}]), do: {:match, :flush}
@@ -60,33 +54,37 @@ defmodule Cards do
   end
 
   defp three_of_a_kind(cards) do
-    # 3 matching faces
-    {:match, :three_of_a_kind}
+    test_for_pairs(cards, [1, 1, 3], :three_of_a_kind)
   end
 
   defp two_pair(cards) do
-    # two one pairs in hand
-    {:match, :two_pair}
+    test_for_pairs(cards, [1, 2, 2], :two_pair)
   end
 
   defp one_pair(cards) do
-    # a matching pair of faces
-    {:match, :one_pair}
+    test_for_pairs(cards, [1, 1, 1, 2], :one_pair)
   end
 
-  defp high_card({:no_match, cards}) do
-    # highest card if no matches, default function
+  defp high_card(cards) do
     {:match, :high_card}
   end
 
-  defp group_by_extract(list, extract) do
-    List.foldl(list, %{}, fn(element, acc) -> Map.update(acc, extract.(element), 1, &(&1 + 1)) end)
+  defp test_for_pairs(cards, sequence, symbol) do
+    case map_to_pairs(cards) do
+      ^sequence ->
+        {:match, symbol}
+      _ ->
+        {:no_match, cards}
+    end
   end
 
-  defp max_face(list) do
-    group_by_extract(list, face_extract)
+  defp map_to_pairs(cards) do
+    cards
+    |> Enum.map(&face_extract/1)
+    |> Enum.group_by(fn(i) -> i end)
     |> Map.values
-    |> Enum.max
+    |> Enum.map(&Enum.count/1)
+    |> Enum.sort
   end
 
   defp sorted_faces(cards) do
@@ -99,6 +97,10 @@ defmodule Cards do
     test
     |> sequence_range
     |> sequence_match
+  end
+
+  defp no_dups?(cards) do
+    Enum.count(Enum.dedup(cards)) === Enum.count(cards)
   end
 
   defp sequence_range(test) do
@@ -118,11 +120,11 @@ defmodule Cards do
 
   def test_hands() do
     %{
-      :invalid_hand => [{2, :spades}, {2, :spades}, {3, :hearts}, {5, :diamonds}, {9, :clubs}],
+      :invalid => [{2, :spades}, {2, :spades}, {3, :hearts}, {5, :diamonds}, {9, :clubs}],
       :straight_flush => [{"J", :clubs}, {10, :clubs}, {9, :clubs}, {8, :clubs}, {7, :clubs}],
       :four_of_a_kind => [{5, :hearts}, {5, :spades}, {5, :clubs}, {5, :diamonds}, {2, :hearts}],
       :full_house => [{6, :hearts}, {6, :spades}, {6, :clubs}, {2, :hearts}, {2, :clubs}],
-      :flush => [{2, :hearts}, {4, :hearts}, {6, :hearts}, {8, :hearts}, {10, :heart}],
+      :flush => [{2, :hearts}, {4, :hearts}, {6, :hearts}, {8, :hearts}, {10, :hearts}],
       :straight => [{2, :hearts}, {3, :clubs}, {4, :diamonds}, {5, :clubs}, {6, :hearts}],
       :three_of_a_kind => [{3, :hearts}, {3, :clubs}, {3, :diamonds}, {5, :hearts}, {7, :spades}],
       :two_pair => [{3, :hearts}, {3, :clubs}, {5, :spades}, {5, :clubs}, {9, :hearts}],
